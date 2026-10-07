@@ -989,8 +989,8 @@ const SHEET_CONFIG_DEFAULT = {
   tab: 'PS4',
   keyHeader: null,
   keyValue: null,
-  targetHeader: 'EVOLUÇÃO',
-  targetColumn: 'Y',
+  targetHeader: 'GERAL',
+  targetColumn: 'AK',
 };
 
 // Cache system to avoid multiple fetches
@@ -1207,10 +1207,6 @@ async function loadSheetDataCached(config = {}, options = {}) {
   const promise = (async () => {
     const table = await fetchSheetTable(cfg);
     const row = findRowByKey(table, cfg.keyHeader, cfg.keyValue);
-    if (!row) {
-      throw new Error('No data row found in sheet');
-    }
-
     const lookup = buildRowLookup(table, row);
     const result = { table, row, valuesByHeader: lookup.valuesByHeader, valuesByColumn: lookup.valuesByColumn };
 
@@ -1990,7 +1986,7 @@ function renderText(el, value, fallback = '') {
 
 function renderLote(value) {
   if (!loteEl) return;
-  loteEl.innerHTML = `Lote &nbsp;·&nbsp; ${String(value != null ? value : '--')}`;
+  loteEl.innerHTML = `Lote &nbsp;·&nbsp; ${escapeHtml(value != null ? value : '--')}`;
 }
 
 // Helper: escape básico para conteúdo dinâmico inserido via innerHTML
@@ -2155,7 +2151,7 @@ function buildZonaPctCard(config, rowData) {
   if (rowData && Object.prototype.hasOwnProperty.call(rowData, '__raw')) {
     raw = rowData.__raw;
   } else {
-    raw = getFieldValue(rowData, config.header, config.column, 0);
+    raw = getFieldValue(rowData, config.header, config.column);
   }
   const pct = parseSheetPercentage(raw);
   const cls = pct == null ? 'empty' : pct === 100 ? 'done' : pct > 0 ? 'going' : 'empty';
