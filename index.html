@@ -2459,7 +2459,7 @@ function renderSheetData(sheetRow) {
   const inicio = getFieldValue(sheetRow, 'INÍCIO SOLDADURA / ACABAMENTO', 'J');
   const previsto = getFieldValue(sheetRow, 'DATA PRETENDIDA', 'F');
   const modeloLote = getFieldValue(sheetRow, 'LOTE', 'D');
-  const prioridadeAtiva = getFieldValue(sheetRow, 'Posto1', 'CI');
+  const prioridadeAtiva = getFieldValue(sheetRow, 'Posto1', 'CR');
   const geral = getFieldValue(sheetRow, 'GERAL', 'AK');
   const chaveProcura = getFieldValue(sheetRow, 'Chave de Procura', 'A');
   const inicioFmt = inicio != null ? formatSheetDate(inicio) : PLACEHOLDER;
