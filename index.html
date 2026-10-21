@@ -165,6 +165,57 @@ header {
   left: clamp(10px, 1.5vw, 18px);
   align-items: center;
 }
+.prio-curso {
+  position: absolute;
+  top: clamp(8px, 1.4vh, 14px);
+  left: clamp(10px, 1.5vw, 18px);
+  z-index: 3;
+  width: min(190px, 34%);
+  padding: 7px 10px;
+  border-left: 2px solid #ffaa00;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+.prio-curso[hidden] { display: none; }
+.prio-curso-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.prio-curso-label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: clamp(8px, 1vh, 10px);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.prio-curso-name {
+  margin-top: 2px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(16px, 2.4vh, 24px);
+  line-height: 1;
+  color: #ffaa00;
+}
+.prio-curso-pct {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(18px, 2.8vh, 28px);
+  line-height: 1;
+  color: #ffaa00;
+  white-space: nowrap;
+}
+.prio-curso-pct small { font-size: 0.55em; }
+.prio-curso-track {
+  height: 3px;
+  margin-top: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.14);
+}
+.prio-curso-bar {
+  height: 100%;
+  background: #ffaa00;
+  transition: width 250ms ease;
+}
 
 /* ══════════════════════════════════════
    MAIN
@@ -915,9 +966,17 @@ footer {
 
       <!-- EVOLUÇÃO -->
       <div class="globe-section" style="flex-direction:column;gap:clamp(6px,1vh,10px);position:relative;">
-        <div class="h-priority h-priority-left" id="prioridadeAtiva">
-          <span class="h-priority-label">Prioridade Ativa</span>
-          <span class="h-priority-value" id="prioridadeAtivaValue">--</span>
+        <div class="prio-curso" id="prioCurso" hidden>
+          <div class="prio-curso-top">
+            <div>
+              <div class="prio-curso-label">Prioridade em Curso</div>
+              <div class="prio-curso-name" id="prioCursoName">--</div>
+            </div>
+            <div class="prio-curso-pct"><span id="prioCursoPct">0</span><small>%</small></div>
+          </div>
+          <div class="prio-curso-track">
+            <div class="prio-curso-bar" id="prioCursoBar" style="width: 0%;"></div>
+          </div>
         </div>
         <div style="font-size:clamp(14px,1.8vh,20px);font-weight:700;letter-spacing:5px;text-transform:uppercase;color:rgba(255,255,255,0.75);">Evolução Global</div>
         <div id="evNum" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(140px,22vh,340px);line-height:.85;letter-spacing:-2px;">--</div>
@@ -1971,6 +2030,41 @@ function updateEvolucao(value) {
   evEl.style.textShadow = `0 0 60px ${ec(pct)}40`;
 }
 
+function findPriorityInProgress(rowData) {
+  const table = rowData && rowData.table;
+  const row = rowData && rowData.row;
+  if (!table || !row || !Array.isArray(table.cols)) return null;
+
+  const startIndex = columnLetterToIndex('AL');
+  const endIndex = columnLetterToIndex('CK');
+  for (let index = startIndex; index <= endIndex; index += 2) {
+    if (String(getValueFromRow(row, index)).trim() !== '4') continue;
+
+    const rawPct = getValueFromRow(row, index + 1);
+    if (rawPct == null || String(rawPct).trim() === '') continue;
+    const pct = parseSheetPercentage(rawPct);
+    if (pct == null || pct === 100) continue;
+
+    const col = table.cols[index];
+    const name = col && String(col.label || col.id || '').trim();
+    if (name) return { name, pct };
+  }
+  return null;
+}
+
+function updatePriorityInProgress(rowData) {
+  const box = document.getElementById('prioCurso');
+  if (!box) return;
+
+  const priority = findPriorityInProgress(rowData);
+  box.hidden = !priority;
+  if (!priority) return;
+
+  document.getElementById('prioCursoName').textContent = priority.name;
+  document.getElementById('prioCursoPct').textContent = priority.pct;
+  document.getElementById('prioCursoBar').style.width = `${Math.max(0, Math.min(100, priority.pct))}%`;
+}
+
 function getFieldValue(rowData, header, column, fallback = null) {
   const value = rowData ? getSheetRowValue(rowData, header, column) : null;
   if (value == null || (typeof value === 'string' && value.trim() === '')) {
@@ -2417,15 +2511,6 @@ function loadAndRenderPaises() {
 function renderSheetData(sheetRow) {
   const PLACEHOLDER = '--';
 
-  // Atualiza o badge "Prioridade Ativa" no canto superior esquerdo
-  const ativaBox = document.getElementById('prioridadeAtiva');
-  const ativaValueEl = document.getElementById('prioridadeAtivaValue');
-  function setPrioridadeAtiva(value) {
-    const txt = value != null && String(value).trim() !== '' ? String(value).trim() : null;
-    if (ativaValueEl) ativaValueEl.textContent = txt || PLACEHOLDER;
-    if (ativaBox) ativaBox.classList.toggle('is-empty', !txt);
-  }
-
   // Separa "MWS500 SDS - 87L" → { modelo: "MWS500 SDS", lote: "87L" }.
   // Se não terminar em "<2 dígitos>L", devolve { modelo: <string toda>, lote: null }.
   function parseModeloLote(raw) {
@@ -2447,7 +2532,7 @@ function renderSheetData(sheetRow) {
     updateDeadline(null, null);
     renderText(modelEl, PLACEHOLDER, PLACEHOLDER);
     renderLote(PLACEHOLDER);
-    setPrioridadeAtiva(null);
+    updatePriorityInProgress(null);
     updateStatus(null);
     updateEvolucao(null);
     currentModeloLote = null;
@@ -2459,8 +2544,7 @@ function renderSheetData(sheetRow) {
   const inicio = getFieldValue(sheetRow, 'INÍCIO SOLDADURA / ACABAMENTO', 'J');
   const previsto = getFieldValue(sheetRow, 'DATA PRETENDIDA', 'F');
   const modeloLote = getFieldValue(sheetRow, 'LOTE', 'D');
-  const prioridadeAtiva = getFieldValue(sheetRow, 'Posto1', 'CR');
-  const geral = getFieldValue(sheetRow, 'GERAL', 'AK');
+  const geral = getFieldValue(sheetRow, 'GERAL(T)', 'N');
   const chaveProcura = getFieldValue(sheetRow, 'Chave de Procura', 'A');
   const inicioFmt = inicio != null ? formatSheetDate(inicio) : PLACEHOLDER;
   const previstoFmt = previsto != null ? formatSheetDate(previsto) : PLACEHOLDER;
@@ -2476,7 +2560,7 @@ function renderSheetData(sheetRow) {
 
   currentModeloLote = (modelo && lote) ? `${modelo} - ${lote}` : null;
   applyActiveHighlight();
-  setPrioridadeAtiva(prioridadeAtiva);
+  updatePriorityInProgress(sheetRow);
   updateStatus(chaveProcura);
   updateEvolucao(parseSheetPercentage(geral));
 
